@@ -1,0 +1,57 @@
+# ==========================================
+# Blog Application - .htaccess
+# ==========================================
+
+# Disable directory listing
+Options -Indexes
+
+# --------------------------------------------------
+# Protect sensitive files
+# --------------------------------------------------
+<FilesMatch "^(config\.php|composer\.(json|lock)|\.env|.*\.sql|.*\.md|.*\.json|\.htaccess)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# --------------------------------------------------
+# Allow static assets
+# --------------------------------------------------
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# --------------------------------------------------
+# URL Rewrite (Optional)
+# --------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Uncomment if using clean URLs later
+    # RewriteRule ^post/([0-9]+)$ view.php?id=$1 [L,QSA]
+</IfModule>
+
+# --------------------------------------------------
+# Error Pages (Optional)
+# --------------------------------------------------
+# ErrorDocument 404 /index.php
+# ErrorDocument 403 /index.php
+
+# --------------------------------------------------
+# Security Headers (Optional)
+# --------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

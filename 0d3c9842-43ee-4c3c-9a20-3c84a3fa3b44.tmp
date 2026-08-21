@@ -1,0 +1,73 @@
+# Blog Application - Git Ignore
+# IN2120 Web Programming
+
+# Database credentials and secrets (NEVER commit these)
+config.local.php
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Uploads and user-generated content (if you add file uploads later)
+uploads/
+images/uploads/
+*.bak
+
+# Composer (if you add PHP packages later)
+vendor/
+composer.lock
+composer.phar
+
+# Node modules (if you add frontend tooling later)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+dist/
+build/
+.cache/
+
+# Backup files
+*.sql.bak
+*.backup
+*~
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+
+# Sensitive files that might contain credentials
+*.pem
+*.key
+*.crt
+secrets.txt
+credentials.txt
+
+# Local development overrides
+config.php.bak
+config.php.old
