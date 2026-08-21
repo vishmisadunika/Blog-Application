@@ -1,0 +1,32 @@
+# Disable directory listing for the uploads folder
+Options -Indexes
+
+# ------------------------------------------------------------------
+# Only allow image files to be served, block scripts/executables.
+# Wrapped with <IfModule> fallbacks so this works on both modern
+# Apache (2.4+, mod_authz_core "Require") and older Apache 2.2 style
+# servers (mod_authz_host "Order/Allow/Deny") — some local dev stacks
+# (older XAMPP/WAMP builds) don't have mod_authz_core enabled, and a
+# bare "Require all granted" with no fallback on those causes a 500
+# error for every image request here, which shows up in the browser
+# as a broken image icon.
+# ------------------------------------------------------------------
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|svg)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|cgi|pl|asp|aspx|shtml|shtm|fcgi|fpl|jsp|htm|html|wml)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
