@@ -102,14 +102,16 @@ function escape($text) {
 }
 
 /**
- * Simple Markdown to HTML converter (basic implementation)
- * For production, consider using a library like Parsedown
+ * Simple Markdown to HTML converter
  * @param string $text
  * @return string
  */
 function markdownToHtml($text) {
     // Escape HTML first
     $html = escape($text);
+
+    // Images: ![alt](url) -> <img src="url" alt="alt" class="content-image">
+    $html = preg_replace('/\!\[([^\]]+)\]\(([^)]+)\)/', '<img src="$2" alt="$1" class="content-image">', $html);
 
     // Headers
     $html = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $html);
@@ -125,8 +127,8 @@ function markdownToHtml($text) {
     // Inline code
     $html = preg_replace('/`(.+?)`/', '<code>$1</code>', $html);
 
-    // Links
-    $html = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/', '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>', $html);
+    // Links (ignore image links which were processed first)
+    $html = preg_replace('/(?<!\!)\[([^\]]+)\]\(([^)]+)\)/', '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>', $html);
 
     // Unordered lists
     $html = preg_replace('/^\- (.+)$/m', '<li>$1</li>', $html);
@@ -148,6 +150,9 @@ function markdownToHtml($text) {
     $html = preg_replace('/(<\/ul>)<\/p>/', '$1', $html);
     $html = preg_replace('/<p>(<ol>)/', '$1', $html);
     $html = preg_replace('/(<\/ol>)<\/p>/', '$1', $html);
+    
+    // Clean up img inside p if needed
+    $html = preg_replace('/<p>(<img[^>]+>)<\/p>/', '$1', $html);
 
     return $html;
 }
@@ -164,5 +169,150 @@ function generateExcerpt($content, $length = 150) {
         return $text;
     }
     return substr($text, 0, $length) . '...';
+}
+
+/**
+ * Calculate reading time in minutes (avg 200 words/min)
+ * @param string $content
+ * @return int
+ */
+function getReadingTime($content) {
+    $wordCount = str_word_count(strip_tags($content));
+    $minutes = ceil($wordCount / 200);
+    return $minutes < 1 ? 1 : $minutes;
+}
+
+/**
+ * Get number of likes for a post
+ * @param int $postId
+ * @return int
+ */
+function getLikeCount($postId) {
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM post_like WHERE post_id = ?");
+    $stmt->bind_param("i", $postId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    return (int)$row['count'];
+}
+
+/**
+ * Check if a user has liked a post
+ * @param int $postId
+ * @param int $userId
+ * @return bool
+ */
+function isLikedByUser($postId, $userId) {
+    if (!$userId) return false;
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("SELECT id FROM post_like WHERE post_id = ? AND user_id = ?");
+    $stmt->bind_param("ii", $postId, $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $hasLiked = $result->num_rows > 0;
+    $stmt->close();
+    return $hasLiked;
+}
+
+/**
+ * Check if a user has bookmarked a post
+ * @param int $postId
+ * @param int $userId
+ * @return bool
+ */
+function isBookmarkedByUser($postId, $userId) {
+    if (!$userId) return false;
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("SELECT id FROM bookmark WHERE post_id = ? AND user_id = ?");
+    $stmt->bind_param("ii", $postId, $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $hasBookmarked = $result->num_rows > 0;
+    $stmt->close();
+    return $hasBookmarked;
+}
+
+/**
+ * Get all topics
+ * @return array
+ */
+function getTopics() {
+    $conn = getDBConnection();
+    $result = $conn->query("SELECT * FROM topic ORDER BY name ASC");
+    $topics = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $topics[] = $row;
+        }
+    }
+    return $topics;
+}
+
+/**
+ * Get single topic by ID
+ * @param int $id
+ * @return array|null
+ */
+function getTopicById($id) {
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("SELECT * FROM topic WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $topic = $result->fetch_assoc();
+    $stmt->close();
+    return $topic ? $topic : null;
+}
+
+/**
+ * Get user avatar or generate default
+ * @param string $username
+ * @return string
+ */
+function getUserAvatar($username) {
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("SELECT avatar FROM user WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    
+    if ($row && !empty($row['avatar'])) {
+        return escape($row['avatar']);
+    }
+    
+    // Generate default using UI Avatars
+    $name = urlencode($username);
+    return "https://ui-avatars.com/api/?name={$name}&background=f0e6d8&color=8b6f5c&rounded=true&bold=true";
+}
+
+/**
+ * Check whether OAuth credentials have been configured for a provider
+ * @param string $provider 'google' or 'github'
+ * @return bool
+ */
+function isOAuthConfigured($provider) {
+    if ($provider === 'google') {
+        return GOOGLE_CLIENT_ID !== '' && GOOGLE_CLIENT_SECRET !== '';
+    }
+    if ($provider === 'github') {
+        return GITHUB_CLIENT_ID !== '' && GITHUB_CLIENT_SECRET !== '';
+    }
+    return false;
+}
+
+/**
+ * Increment view count for a post
+ * @param int $postId
+ */
+function incrementViews($postId) {
+    $conn = getDBConnection();
+    $stmt = $conn->prepare("UPDATE blogPost SET views = views + 1 WHERE id = ?");
+    $stmt->bind_param("i", $postId);
+    $stmt->execute();
+    $stmt->close();
 }
 ?>
